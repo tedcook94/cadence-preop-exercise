@@ -80,7 +80,7 @@ Status: `[ ]` todo, `[x]` done.
 
 ### Phase 2: Extraction (about 90 min)
 - [x] `Add extraction prompt with static policy prefix`: `prompts.py` with the policy, the extraction guide, and the case-JSON builder. Test: the builder's output is deterministic.
-- [ ] `Add LLM extraction client`: `extract.py` with the shared client, `responses.parse`, `temperature=0`, pinned snapshot, `store=False`, and `prompt_cache_key`. Test: mocked client, request kwargs asserted.
+- [x] `Add LLM extraction client`: `extract.py` with the shared client, `responses.parse`, `temperature=0`, pinned snapshot, `store=False`, and `prompt_cache_key`. Test: mocked client, request kwargs asserted.
 - [ ] `Map logprobs to enum field confidences`: align enum tokens to field paths. Test: synthetic token stream.
 
 ### Phase 3: Rules (about 2 h, each commit has synthetic unit tests)
