@@ -33,7 +33,7 @@ triage_submission(submission, model)            # signature unchanged
 
 Every field is required and has an `evidence` string that cites sources by index (e.g. `documents[2]`).
 
-- `documents[]`: `index`, `doc_kind` (`HP_PREOP | HP_OTHER | CONSENT | ANTICOAG_PLAN | NURSING | OTHER`), `consent_status` (`SIGNED | PENDING | UNSIGNED | NA`), `consent_matches_procedure` (`YES | NO | NA`), `evidence`
+- `documents[]`: `index`, `doc_kind` (`HP_PREOP | HP_OTHER | CONSENT | ANTICOAG_PLAN | NURSING | OTHER`), `consent_status` (`SIGNED | PENDING | UNSIGNED | N/A`), `consent_matches_procedure` (`YES | NO | N/A`), `evidence`
 - `labs[]`: `index`, `test` (`CBC | CMP | BMP | OTHER`)
 - `note_vitals[]`: `doc_index`, `kind` (`BP | TEMP`), `systolic`, `diastolic`, `value`, `unit` (`F | C`), `timestamp`, `evidence`
 - `anticoagulants[]`: `drug`, `status` (`ACTIVE | INACTIVE | UNCERTAIN`), `plan_doc_index | null`, `plan_has_hold`, `plan_has_resume`, `plan_matches_drug`, `evidence`
@@ -75,7 +75,7 @@ Status: `[ ]` todo, `[x]` done.
 - [x] `docs: add implementation plan`: this file
 
 ### Phase 1: Schemas (about 45 min)
-- [ ] `Add extraction schema for case facts`: `schemas.py` with `CaseFacts` and its nested models, enums, `extra="forbid"`, all fields required. Test: strict-mode schema check.
+- [x] `Add extraction schema for case facts`: `schemas.py` with `CaseFacts` and its nested models, enums, `extra="forbid"`, all fields required. Test: strict-mode schema check.
 - [ ] `Add structured issue evidence to output schema`: `Issue{category, description, evidence{source, details}}`. Test: `example_output.json` validates.
 
 ### Phase 2: Extraction (about 90 min)
