@@ -1,0 +1,22 @@
+{
+  "decision": "NEEDS_FOLLOW_UP",
+  "issues": [
+    {
+      "category": "MISSING_REQUIRED_DATA",
+      "description": "Missing procedure date",
+      "evidence": {
+        "source": "procedure.procedure_date",
+        "details": "procedure.procedure_date is null"
+      }
+    },
+    {
+      "category": "ANTICOAGULATION_MANAGEMENT",
+      "description": "Missing perioperative anticoagulation plan",
+      "evidence": {
+        "source": "documents[4]",
+        "details": "Active anticoagulant medication present (medications[1]) but no clear perioperative plan document found"
+      }
+    }
+  ],
+  "explanation": "MISSING_REQUIRED_DATA: Missing procedure date | ANTICOAGULATION_MANAGEMENT: Missing perioperative anticoagulation plan"
+}

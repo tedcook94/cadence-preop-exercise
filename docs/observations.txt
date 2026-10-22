@@ -1,0 +1,10 @@
+case_00000: Xarelto not listed in `medications`, but in notes is acceptable
+case_00001. Document title is misspelled
+case_00002: Temp can be in Celsius or Farenheit
+case_00003: 
+case_00004: Later labs marked as "entered in error" should be ignored
+case_00005: Good vitals within the acceptable window aren't enough if later vitals are outside acceptable range
+case_00006: 
+case_00007: Consent forms with a pending signature are not acceptable unless a later consent form is signed
+case_00008: 
+case_00009: Incomplete vitals are not acceptable
