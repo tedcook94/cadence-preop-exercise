@@ -367,3 +367,57 @@ def check_acute_safety(ctx: RuleContext) -> list[TriageIssue]:
             )
         )
     return issues
+
+
+def check_missing_data(ctx: RuleContext) -> list[TriageIssue]:
+    """Final determination: fields needed to evaluate a rule must be present and known."""
+
+    issues = []
+    if ctx.procedure_date is None:
+        raw = ctx.procedure.get("procedure_date")
+        issues.append(
+            make_issue(
+                "MISSING_REQUIRED_DATA",
+                "Missing procedure date",
+                "procedure.procedure_date",
+                f"procedure.procedure_date is {'null' if raw is None else f'unparseable ({raw!r})'}; "
+                "H&P and testing windows cannot be evaluated",
+            )
+        )
+    if ctx.procedure_risk not in REQUIRED_TESTS:
+        issues.append(
+            make_issue(
+                "MISSING_REQUIRED_DATA",
+                "Missing procedure risk",
+                "procedure.procedure_risk",
+                f"procedure.procedure_risk is {ctx.procedure_risk!r}; required testing cannot be determined",
+            )
+        )
+
+    readings = collect_readings(ctx)
+    for label, present in (
+        ("blood pressure", any(r.systolic is not None or r.diastolic is not None for r in readings)),
+        ("temperature", any(r.temp_f is not None for r in readings)),
+    ):
+        if not present:
+            issues.append(
+                make_issue(
+                    "MISSING_REQUIRED_DATA",
+                    f"Missing {label} reading",
+                    "vitals",
+                    f"No dated {label} found in structured vitals or document text; "
+                    "acute safety exclusions cannot be evaluated",
+                )
+            )
+
+    for drug in ctx.facts.anticoagulants:
+        if drug.status == "UNCERTAIN":
+            issues.append(
+                make_issue(
+                    "MISSING_REQUIRED_DATA",
+                    f"Unconfirmed anticoagulant use: {drug.drug}",
+                    "medications",
+                    f"Cannot determine whether a perioperative plan is required. {drug.evidence}",
+                )
+            )
+    return issues

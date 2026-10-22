@@ -87,7 +87,7 @@ Status: `[ ]` todo, `[x]` done.
 - [x] `Add normalization helpers`: date parsing, °C→°F, inclusive window check, latest-reading selection.
 - [x] `Add documentation and testing rules`: Rule 1 (H&P, consent) and Rule 2 (CBC/CMP by risk).
 - [x] `Add anticoagulation and acute safety rules`: Rule 3 and Rule 4.
-- [ ] `Add missing-data rules and low-confidence fallback`.
+- [x] `Add missing-data rules and low-confidence fallback`.
 
 ### Phase 4: Wiring (about 30 min)
 - [ ] `Wire extraction and rules into triage_submission`: pipeline, decision precedence, and explanation builder. Rewrite `tests/test_triage_submission.py` for the mocked flow; this is moved here so `make test` stays green.
