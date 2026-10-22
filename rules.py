@@ -427,3 +427,20 @@ def check_missing_data(ctx: RuleContext) -> list[TriageIssue]:
                 )
             )
     return issues
+
+
+RULES = (
+    check_missing_data,
+    check_history_and_physical,
+    check_surgical_consent,
+    check_required_testing,
+    check_anticoagulation,
+    check_acute_safety,
+)
+
+
+def evaluate_rules(submission: dict[str, Any], facts: CaseFacts) -> list[TriageIssue]:
+    """Run every rule and return all issues in a stable order."""
+
+    ctx = RuleContext(submission=submission, facts=facts)
+    return [issue for rule in RULES for issue in rule(ctx)]

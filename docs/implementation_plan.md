@@ -90,7 +90,7 @@ Status: `[ ]` todo, `[x]` done.
 - [x] `Add missing-data rules and low-confidence fallback`.
 
 ### Phase 4: Wiring (about 30 min)
-- [ ] `Wire extraction and rules into triage_submission`: pipeline, decision precedence, and explanation builder. Rewrite `tests/test_triage_submission.py` for the mocked flow; this is moved here so `make test` stays green.
+- [x] `Wire extraction and rules into triage_submission`: pipeline, decision precedence, and explanation builder. Rewrite `tests/test_triage_submission.py` for the mocked flow; this is moved here so `make test` stays green.
 
 ### Phase 5: End-to-end tests (about 45 min)
 - [ ] `Add end-to-end tests with recorded facts`: hand-written `CaseFacts` fixtures run through rules → decision, covering each decision type. No network.

@@ -1,6 +1,6 @@
-"""Baseline prompt helpers and the triage_submission entry point."""
+"""The triage_submission entry point: LLM fact extraction, then policy rules."""
 
-import json
+import logging
 
 from schemas import (
     Decision,
@@ -13,7 +13,6 @@ from schemas import (
 )
 
 __all__ = [
-    "BASELINE_SYSTEM_PROMPT",
     "Decision",
     "IssueCategory",
     "IssueEvidence",
@@ -21,78 +20,29 @@ __all__ = [
     "ProcedureRisk",
     "TriageIssue",
     "TriageOutput",
-    "build_user_prompt",
-    "triage_output_json_schema",
+    "build_explanation",
+    "decide",
     "triage_submission",
 ]
 
-# -------------------------
-# Policy + system prompt
-# -------------------------
+logger = logging.getLogger(__name__)
 
-BASELINE_SYSTEM_PROMPT = """
-You are a clinical operations assistant for pre-op scheduling triage.
-Base decisions only on the policy below. General clinical knowledge may be used to interpret the record (e.g., drug brand names, unit conversions), not to add criteria.
-
-Cadence Surgical Center Pre-Operative Scheduling Policy (effective Jan 1, 2026)
-
-Output exactly one status:
-- READY
-- NEEDS_FOLLOW_UP
-- NOT_CLEARED
-
-Rule 1: Required documentation
-- History and Physical (H&P) must exist and be completed within 30 days of procedure date.
-- Signed Surgical Consent must exist.
-If documentation is missing/outdated -> NEEDS_FOLLOW_UP.
-
-Rule 2: Required testing by procedure risk
-- LOW or MODERATE risk: CBC within 30 days of procedure date.
-- HIGH risk: CBC within 14 days and CMP within 14 days.
-Use only the most recent result for each required test.
-If a required test is missing or outside window -> NEEDS_FOLLOW_UP.
-
-Rule 3: Anticoagulation management
-If the patient is currently taking an anticoagulant, a perioperative anticoagulation plan must be documented and clear.
-If no clear plan is documented -> NEEDS_FOLLOW_UP.
-
-Rule 4: Acute safety exclusions
-If any of the following are present at review time -> NOT_CLEARED:
-- Systolic BP >= 180 mmHg
-- Diastolic BP >= 110 mmHg
-- Temperature > 100.4 F
-Use the most recent relevant vital.
-
-Final determination
-- READY only if all required criteria are satisfied and no exclusions are present.
-- If a required field needed to evaluate a rule is missing/unknown -> NEEDS_FOLLOW_UP.
-
-Output requirements
-- Return exactly one JSON object.
-""".strip()
-
-def triage_output_json_schema() -> dict[str, object]:
-    """Return the JSON schema used for structured model outputs."""
-
-    schema = TriageOutput.model_json_schema()
-    return schema
+ACUTE_CATEGORIES: frozenset[IssueCategory] = frozenset({"ACUTE_SAFETY_EXCLUSION"})
+READY_EXPLANATION = "All required documentation, testing, and clinical criteria are satisfied."
 
 
-# -------------------------
-# Prompt helpers
-# -------------------------
+def decide(issues: list[TriageIssue]) -> Decision:
+    """Acute safety issues take precedence over all others; no issues means READY."""
+
+    if any(issue.category in ACUTE_CATEGORIES for issue in issues):
+        return "NOT_CLEARED"
+    return "NEEDS_FOLLOW_UP" if issues else "READY"
 
 
-def build_user_prompt(submission: dict[str, object]) -> str:
-    """Format a single submission package as user input."""
-
-    sections = [
-        "Evaluate this patient package for pre-op scheduling readiness using the provided policy.",
-        "Return your response as JSON.",
-        "Submission JSON:",
-        json.dumps(submission, sort_keys=True),
-    ]
-    return "\n".join(sections)
+def build_explanation(issues: list[TriageIssue]) -> str:
+    if not issues:
+        return READY_EXPLANATION
+    return " | ".join(f"{issue.category}: {issue.description}" for issue in issues)
 
 
 def triage_submission(
@@ -100,41 +50,26 @@ def triage_submission(
     *,
     model: str,
 ) -> TriageOutput:
-    """Naive baseline implementation: single LLM call with JSON response output."""
+    """Triage one submission: LLM fact extraction, then deterministic policy rules."""
 
-    # Import lazily so core utilities remain usable without OpenAI installed.
-    from openai import OpenAI
+    # Imported here so the schema re-exports above load without the OpenAI SDK.
+    from extract import extract_case_facts
+    from fallback import apply_confidence_fallback
+    from rules import evaluate_rules
 
-    if isinstance(submission, PatientSubmission):
-        submission_payload = submission.model_dump()
-    else:
-        submission_payload = PatientSubmission.model_validate(submission).model_dump()
+    if not isinstance(submission, PatientSubmission):
+        submission = PatientSubmission.model_validate(submission)
+    payload = submission.model_dump()
 
-    client = OpenAI()
-    request_kwargs: dict[str, object] = {
-        "model": model,
-        "instructions": BASELINE_SYSTEM_PROMPT,
-        "input": [
-            {
-                "type": "message",
-                "role": "user",
-                "content": [
-                    {
-                        "type": "input_text",
-                        "text": build_user_prompt(submission_payload),
-                    }
-                ],
-            }
-        ],
-        "text": {
-            "format": {
-                "type": "json_schema",
-                "name": "preop_triage_output",
-                "schema": triage_output_json_schema(),
-                "strict": False,
-            }
-        },
-    }
+    extraction = extract_case_facts(payload, model=model)
+    facts, demoted = apply_confidence_fallback(extraction.facts, extraction.confidences)
+    if demoted:
+        case_id = (payload.get("procedure") or {}).get("case_id")
+        logger.info("Case %s: low-confidence fields treated as failing: %s", case_id, demoted)
 
-    response = client.responses.create(**request_kwargs)
-    return TriageOutput.model_validate_json(response.output_text)
+    issues = evaluate_rules(payload, facts)
+    return TriageOutput(
+        decision=decide(issues),
+        issues=issues,
+        explanation=build_explanation(issues),
+    )
