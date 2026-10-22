@@ -6,7 +6,7 @@ from typing import Any
 from openai import OpenAI
 
 from confidence import field_confidences
-from prompts import INSTRUCTIONS, build_case_input
+from prompts import INDEXED_SECTIONS, INSTRUCTIONS, build_case_input
 from schemas import CaseFacts
 
 # Aliases float to newer snapshots over time; pinning keeps behavior stable.
@@ -59,4 +59,19 @@ def extract_case_facts(submission: dict[str, Any], *, model: str) -> Extraction:
     facts = response.output_parsed
     if facts is None:
         raise ValueError("Model returned no parsed CaseFacts (refusal or empty output)")
+    validate_indexes(facts, submission)
     return Extraction(facts=facts, confidences=field_confidences(response))
+
+
+def validate_indexes(facts: CaseFacts, submission: dict[str, Any]) -> None:
+    """Require exactly one extracted entry per submission item.
+
+    Order is not checked: rules look items up by index, and confidence paths and
+    the fallback both use output position, so they stay aligned in any order.
+    """
+
+    for section in INDEXED_SECTIONS:
+        expected = list(range(len(submission.get(section) or [])))
+        actual = [item.index for item in getattr(facts, section)]
+        if sorted(actual) != expected:
+            raise ValueError(f"Extracted {section} indexes {actual} do not match {expected}")

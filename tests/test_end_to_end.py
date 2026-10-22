@@ -204,8 +204,10 @@ def _resolves(submission: dict[str, Any], path: str) -> bool:
 def test_output_contract_and_determinism(client: Mock) -> None:
     submission = _submission(procedure_risk=None, vitals=[], labs=[])
 
-    first = _run(client, submission, _response(READY_FACTS))
-    second = _run(client, submission, _response(READY_FACTS))
+    facts = READY_FACTS.model_copy(update={"labs": []})
+
+    first = _run(client, submission, _response(facts))
+    second = _run(client, submission, _response(facts))
 
     assert TriageOutput.model_validate(first.model_dump()) == first
     assert first.model_dump_json() == second.model_dump_json()

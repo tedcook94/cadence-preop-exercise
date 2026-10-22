@@ -5,7 +5,7 @@ import pytest
 
 import extract
 from prompts import INSTRUCTIONS, build_case_input
-from schemas import CaseFacts
+from schemas import CaseFacts, DocumentFacts
 
 FACTS = CaseFacts(documents=[], labs=[], note_vitals=[], anticoagulants=[])
 SUBMISSION = {"procedure": {"procedure_risk": "LOW"}}
@@ -57,3 +57,29 @@ def test_missing_parsed_output_raises(client: Mock) -> None:
 
     with pytest.raises(ValueError):
         extract.extract_case_facts(SUBMISSION, model="test-model")
+
+
+def _facts(doc_indexes: list[int]) -> CaseFacts:
+    docs = [
+        DocumentFacts(
+            index=i, doc_kind="OTHER", consent_status="N/A",
+            consent_matches_procedure="N/A", evidence="e",
+        )
+        for i in doc_indexes
+    ]
+    return CaseFacts(documents=docs, labs=[], note_vitals=[], anticoagulants=[])
+
+
+@pytest.mark.parametrize("indexes", [[0], [0, 0], [1, 1], [0, 1, 2]])
+def test_mismatched_indexes_raise(client: Mock, indexes: list[int]) -> None:
+    client.responses.parse.return_value = SimpleNamespace(output_parsed=_facts(indexes), output=[])
+
+    with pytest.raises(ValueError, match="documents indexes"):
+        extract.extract_case_facts({"documents": [{}, {}]}, model="test-model")
+
+
+@pytest.mark.parametrize("indexes", [[0, 1], [1, 0]])
+def test_complete_indexes_pass_in_any_order(client: Mock, indexes: list[int]) -> None:
+    client.responses.parse.return_value = SimpleNamespace(output_parsed=_facts(indexes), output=[])
+
+    assert extract.extract_case_facts({"documents": [{}, {}]}, model="test-model").facts.documents

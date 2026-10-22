@@ -35,8 +35,10 @@ Downstream code applies the policy to your output.
 
 Read the whole submission before answering. Documents can correct, supersede,
 or add to each other and to the structured fields, so judge each item in the
-context of all the others. Indexes are 0-based positions in the submission's
-arrays. Every "evidence" value is one short sentence quoting or paraphrasing
+context of all the others. Every item in submission.documents and
+submission.labs carries an "index" field; copy it exactly into index and
+doc_index, and use it when citing paths. Do not count positions yourself.
+Every "evidence" value is one short sentence quoting or paraphrasing
 the source, citing paths such as documents[2] or medications[1].
 
 documents: one entry per item in submission.documents, in order.
@@ -105,8 +107,21 @@ drug's plan is not a separate entry.
 INSTRUCTIONS = f"{POLICY}\n\n{EXTRACTION_GUIDE}"
 
 
-def build_case_input(submission: dict[str, Any]) -> str:
-    """Serialize the submission identically for identical input."""
+INDEXED_SECTIONS = ("documents", "labs")
 
-    payload = json.dumps(submission, sort_keys=True, separators=(",", ":"))
+
+def build_case_input(submission: dict[str, Any]) -> str:
+    """Serialize the submission identically for identical input.
+
+    Items in INDEXED_SECTIONS get an explicit "index" so the model copies a label
+    instead of counting array positions, which it miscounts when items are not in
+    date order.
+    """
+
+    labeled = dict(submission)
+    for section in INDEXED_SECTIONS:
+        labeled[section] = [
+            {**item, "index": i} for i, item in enumerate(submission.get(section) or [])
+        ]
+    payload = json.dumps(labeled, sort_keys=True, separators=(",", ":"))
     return f"Submission JSON:\n{payload}"
