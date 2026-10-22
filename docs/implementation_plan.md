@@ -85,7 +85,7 @@ Status: `[ ]` todo, `[x]` done.
 
 ### Phase 3: Rules (about 2 h, each commit has synthetic unit tests)
 - [x] `Add normalization helpers`: date parsing, °C→°F, inclusive window check, latest-reading selection.
-- [ ] `Add documentation and testing rules`: Rule 1 (H&P, consent) and Rule 2 (CBC/CMP by risk).
+- [x] `Add documentation and testing rules`: Rule 1 (H&P, consent) and Rule 2 (CBC/CMP by risk).
 - [ ] `Add anticoagulation and acute safety rules`: Rule 3 and Rule 4.
 - [ ] `Add missing-data rules and low-confidence fallback`.
 
