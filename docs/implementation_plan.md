@@ -93,7 +93,7 @@ Status: `[ ]` todo, `[x]` done.
 - [x] `Wire extraction and rules into triage_submission`: pipeline, decision precedence, and explanation builder. Rewrite `tests/test_triage_submission.py` for the mocked flow; this is moved here so `make test` stays green.
 
 ### Phase 5: End-to-end tests (about 45 min)
-- [ ] `Add end-to-end tests with recorded facts`: hand-written `CaseFacts` fixtures run through rules → decision, covering each decision type. No network.
+- [x] `Add end-to-end tests with recorded facts`: hand-written `CaseFacts` fixtures run through rules → decision, covering each decision type. No network.
 
 ### Phase 6: Evaluate and fix (1–2 h)
 - [ ] `Update baseline outputs and eval reports`: `make baseline evals determinism`.
