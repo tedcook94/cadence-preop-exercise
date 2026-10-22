@@ -4,12 +4,15 @@ Each rule is a pure function that returns every issue it finds; no rule stops
 early or depends on another rule's result.
 """
 
+import logging
+import re
 from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
 from normalize import latest, parse_date, parse_datetime, to_fahrenheit, within_days
 from schemas import (
+    AnticoagulantFacts,
     CaseFacts,
     DocumentFacts,
     IssueCategory,
@@ -25,6 +28,29 @@ REQUIRED_TESTS: dict[str, tuple[LabTest, ...]] = {
     "MODERATE": ("CBC",),
     "HIGH": ("CBC", "CMP"),
 }
+logger = logging.getLogger(__name__)
+
+# The policy covers anticoagulants only. The extraction prompt already excludes
+# antiplatelets, but the model occasionally lists one anyway; dropping known
+# antiplatelets here only removes drugs that can never require a plan.
+ANTIPLATELETS = frozenset(
+    {
+        "aspirin",
+        "asa",
+        "clopidogrel",
+        "plavix",
+        "prasugrel",
+        "effient",
+        "ticagrelor",
+        "brilinta",
+        "cilostazol",
+        "pletal",
+        "dipyridamole",
+        "persantine",
+        "aggrenox",
+    }
+)
+
 SYSTOLIC_LIMIT = 180  # mmHg, inclusive
 DIASTOLIC_LIMIT = 110  # mmHg, inclusive
 TEMP_LIMIT_F = 100.4  # exclusive
@@ -219,11 +245,27 @@ def check_required_testing(ctx: RuleContext) -> list[TriageIssue]:
     return issues
 
 
+def is_antiplatelet(name: str) -> bool:
+    return any(word in ANTIPLATELETS for word in re.findall(r"[a-z]+", name.lower()))
+
+
+def anticoagulants(ctx: RuleContext) -> list[AnticoagulantFacts]:
+    """Extracted anticoagulants, excluding any antiplatelet the model misfiled."""
+
+    kept = []
+    for drug in ctx.facts.anticoagulants:
+        if is_antiplatelet(drug.drug):
+            logger.info("Ignoring antiplatelet listed as anticoagulant: %s", drug.drug)
+            continue
+        kept.append(drug)
+    return kept
+
+
 def check_anticoagulation(ctx: RuleContext) -> list[TriageIssue]:
     """Rule 3: each active anticoagulant needs a clear hold-and-resume plan."""
 
     issues = []
-    for drug in ctx.facts.anticoagulants:
+    for drug in anticoagulants(ctx):
         if drug.status != "ACTIVE":
             continue  # UNCERTAIN is reported as missing data separately.
 
@@ -416,7 +458,7 @@ def check_missing_data(ctx: RuleContext) -> list[TriageIssue]:
                 )
             )
 
-    for drug in ctx.facts.anticoagulants:
+    for drug in anticoagulants(ctx):
         if drug.status == "UNCERTAIN":
             issues.append(
                 make_issue(

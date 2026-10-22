@@ -96,8 +96,8 @@ Status: `[ ]` todo, `[x]` done.
 - [x] `Add end-to-end tests with recorded facts`: hand-written `CaseFacts` fixtures run through rules → decision, covering each decision type. No network.
 
 ### Phase 6: Evaluate and fix (1–2 h)
-- [ ] `Update baseline outputs and eval reports`: `make baseline evals determinism`.
-- [ ] `fix: <generic cause>` (0–N): one commit per generic failure cause, each with a test.
+- [x] `Update baseline outputs and eval reports`: `make baseline evals determinism`.
+- [x] `fix: <generic cause>` (0–N): one commit per generic failure cause, each with a test.
 
 Target: score above 74.0 and 100% decision stability.
 

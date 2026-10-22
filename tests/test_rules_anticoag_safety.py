@@ -3,7 +3,7 @@ from typing import Any
 
 import pytest
 
-from rules import RuleContext, check_acute_safety, check_anticoagulation
+from rules import RuleContext, check_acute_safety, check_anticoagulation, check_missing_data
 from schemas import AnticoagulantFacts, AnticoagulantStatus, CaseFacts, NoteVital, TempUnit
 
 
@@ -195,3 +195,30 @@ def test_readings_after_procedure_are_ignored() -> None:
     issues = check_acute_safety(_ctx(vitals=[_bp(200, 120, "2026-04-01T08:00:00Z")]))
 
     assert issues == []
+
+
+# --- Antiplatelets ------------------------------------------------------------
+
+
+@pytest.mark.parametrize("name", ["aspirin", "Aspirin 81 mg PO daily", "ASA", "Plavix", "clopidogrel"])
+def test_antiplatelets_never_raise_anticoagulation_issues(name: str) -> None:
+    drug = _drug(plan=None).model_copy(update={"drug": name})
+
+    assert check_anticoagulation(_ctx(anticoagulants=[drug])) == []
+
+
+def test_antiplatelet_uncertain_status_is_not_missing_data() -> None:
+    drug = _drug(status="UNCERTAIN", plan=None).model_copy(update={"drug": "aspirin"})
+    ctx = _ctx(
+        anticoagulants=[drug],
+        vitals=[_bp(120, 80, "2026-03-30T08:00:00Z"), _temp(98.6, "2026-03-30T08:00:00Z")],
+    )
+
+    assert check_missing_data(ctx) == []
+
+
+@pytest.mark.parametrize("name", ["apixaban", "warfarin", "basaprin"])
+def test_non_antiplatelets_are_still_checked(name: str) -> None:
+    drug = _drug(plan=None).model_copy(update={"drug": name})
+
+    assert len(check_anticoagulation(_ctx(anticoagulants=[drug]))) == 1
