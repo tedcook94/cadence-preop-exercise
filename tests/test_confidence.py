@@ -1,9 +1,11 @@
 import math
+from typing import get_args
 from types import SimpleNamespace
 
 import pytest
 
-from confidence import field_confidences, field_value_spans
+from confidence import SECTION_OF, field_confidences, field_value_spans
+from schemas import CaseFacts
 
 TEXT = (
     '{"documents":[{"index":0,"doc_kind":"CONSENT","consent_status":"SIGNED",'
@@ -38,6 +40,40 @@ def test_spans_cover_only_tracked_fields() -> None:
         "documents[0].consent_status": "SIGNED",
         "anticoagulants[0].plan_has_hold": "true",
     }
+
+
+def test_escaped_quotes_in_strings_do_not_break_spans() -> None:
+    text = (
+        '{"documents":[{"evidence":"says \\"doc_kind\\":\\"CONSENT\\" \\\\",'
+        '"doc_kind":"OTHER"}]}'
+    )
+
+    spans = {path: text[s:e] for path, (s, e) in field_value_spans(text).items()}
+
+    assert spans == {"documents[0].doc_kind": "OTHER"}
+
+
+def test_null_values_are_counted_but_not_spanned() -> None:
+    text = '{"note_vitals":[{"kind":"BP","unit":null},{"kind":"TEMP","unit":"C"}]}'
+
+    spans = {path: text[s:e] for path, (s, e) in field_value_spans(text).items()}
+
+    assert spans == {
+        "note_vitals[0].kind": "BP",
+        "note_vitals[1].kind": "TEMP",
+        "note_vitals[1].unit": "C",
+    }
+
+
+def test_section_map_matches_schema() -> None:
+    sections: dict[str, list[str]] = {}
+    for section, field in CaseFacts.model_fields.items():
+        item_model = get_args(field.annotation)[0]
+        for key in item_model.model_fields:
+            sections.setdefault(key, []).append(section)
+
+    for key, section in SECTION_OF.items():
+        assert sections[key] == [section], f"{key} must belong only to {section}"
 
 
 def test_confidence_is_joint_probability_of_value_tokens() -> None:

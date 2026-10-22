@@ -5,31 +5,34 @@ Logprobs are poorly calibrated, so these numbers gate decisions; they are not
 accuracy estimates.
 """
 
-import json.decoder
 import math
 import re
+from collections import Counter
 from typing import Any
 
-CONFIDENCE_KEYS = frozenset(
-    {
-        "doc_kind",
-        "consent_status",
-        "consent_matches_procedure",
-        "test",
-        "kind",
-        "unit",
-        "status",
-        "plan_has_hold",
-        "plan_has_resume",
-        "plan_matches_drug",
-    }
-)
+# Tracked key -> the CaseFacts list it belongs to. Each key must appear in only
+# one list, so the n-th occurrence of a key in the output is item n of that list.
+SECTION_OF: dict[str, str] = {
+    "doc_kind": "documents",
+    "consent_status": "documents",
+    "consent_matches_procedure": "documents",
+    "test": "labs",
+    "kind": "note_vitals",
+    "unit": "note_vitals",
+    "status": "anticoagulants",
+    "plan_has_hold": "anticoagulants",
+    "plan_has_resume": "anticoagulants",
+    "plan_matches_drug": "anticoagulants",
+}
+CONFIDENCE_KEYS = frozenset(SECTION_OF)
 
-# Zero or more JSON whitespace characters (space, tab, newline, carriage return).
-_WS = re.compile(r"[ \t\n\r]*")
-# A bare JSON literal: true, false, null, or a number with optional sign,
-# fraction, and exponent (e.g. -3, 98.6, 1e-5).
-_LITERAL = re.compile(r"true|false|null|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?")
+# A tracked key followed by its value: an enum string (no quotes or escapes),
+# or a bare true/false/null. Keys quoted inside free text appear as \"key\"
+# and do not match because the opening quote must not be escaped.
+_FIELD = re.compile(
+    r'(?<!\\)"(?P<key>' + "|".join(SECTION_OF) + r')"\s*:\s*'
+    r'(?:"(?P<str>[^"\\]*)"|(?P<lit>true|false|null))'
+)
 
 Span = tuple[int, int]
 
@@ -37,49 +40,15 @@ Span = tuple[int, int]
 def field_value_spans(text: str) -> dict[str, Span]:
     """Return character spans of tracked values in a JSON document, keyed by path."""
 
+    seen: Counter[str] = Counter()
     spans: dict[str, Span] = {}
-
-    def skip_ws(i: int) -> int:
-        return _WS.match(text, i).end()
-
-    def parse(i: int, path: str, key: str | None) -> int:
-        i = skip_ws(i)
-        char = text[i]
-        if char == "{":
-            i = skip_ws(i + 1)
-            if text[i] == "}":
-                return i + 1
-            while True:
-                name, i = json.decoder.scanstring(text, skip_ws(i) + 1)
-                i = skip_ws(i) + 1  # colon
-                i = skip_ws(parse(i, f"{path}.{name}" if path else name, name))
-                if text[i] == "}":
-                    return i + 1
-                i += 1  # comma
-        if char == "[":
-            i = skip_ws(i + 1)
-            if text[i] == "]":
-                return i + 1
-            index = 0
-            while True:
-                i = skip_ws(parse(i, f"{path}[{index}]", None))
-                if text[i] == "]":
-                    return i + 1
-                i += 1
-                index += 1
-        if char == '"':
-            _, end = json.decoder.scanstring(text, i + 1)
-            if key in CONFIDENCE_KEYS:
-                spans[path] = (i + 1, end - 1)
-            return end
-        match = _LITERAL.match(text, i)
-        if match is None:
-            raise ValueError(f"Unexpected JSON at offset {i}")
-        if key in CONFIDENCE_KEYS and match.group() in ("true", "false"):
-            spans[path] = match.span()
-        return match.end()
-
-    parse(0, "", None)
+    for match in _FIELD.finditer(text):
+        key = match["key"]
+        index = seen[key]
+        seen[key] += 1
+        group = "str" if match["str"] is not None else "lit"
+        if match[group] != "null":
+            spans[f"{SECTION_OF[key]}[{index}].{key}"] = match.span(group)
     return spans
 
 
