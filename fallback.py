@@ -11,7 +11,8 @@ from schemas import CaseFacts
 
 logger = logging.getLogger(__name__)
 
-# Placeholder until Phase 7 tunes it against the logged confidence distribution.
+# Not tuned: kept as a conservative POC default. See docs/implementation_plan.md,
+# "Threshold rationale", before changing it.
 CONFIDENCE_THRESHOLD = 0.8
 
 # (section, field) -> {clearing value: failing replacement}
