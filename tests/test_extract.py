@@ -28,7 +28,7 @@ def test_request_uses_strict_cached_deterministic_settings(client: Mock) -> None
     assert kwargs["model"] == "gpt-4.1-mini-2025-04-14"
     assert kwargs["instructions"] == INSTRUCTIONS
     assert kwargs["input"] == [{"role": "user", "content": build_case_input(SUBMISSION)}]
-    assert kwargs["text_format"] is CaseFacts
+    assert issubclass(kwargs["text_format"], CaseFacts)
     assert kwargs["temperature"] == 0
     assert kwargs["store"] is False
     assert kwargs["prompt_cache_key"] == extract.PROMPT_CACHE_KEY
@@ -83,3 +83,14 @@ def test_complete_indexes_pass_in_any_order(client: Mock, indexes: list[int]) ->
     client.responses.parse.return_value = SimpleNamespace(output_parsed=_facts(indexes), output=[])
 
     assert extract.extract_case_facts({"documents": [{}, {}]}, model="test-model").facts.documents
+
+
+def test_format_pins_item_counts() -> None:
+    from openai.lib._pydantic import to_strict_json_schema
+
+    schema = to_strict_json_schema(extract.case_facts_format({"documents": [{}, {}], "labs": []}))
+    props = schema["properties"]
+
+    assert (props["documents"]["minItems"], props["documents"]["maxItems"]) == (2, 2)
+    assert (props["labs"]["minItems"], props["labs"]["maxItems"]) == (0, 0)
+    assert "minItems" not in props["note_vitals"]

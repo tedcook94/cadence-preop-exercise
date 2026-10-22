@@ -4,10 +4,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from openai import OpenAI
+from pydantic import Field, create_model
 
 from confidence import field_confidences
 from prompts import INDEXED_SECTIONS, INSTRUCTIONS, build_case_input
-from schemas import CaseFacts
+from schemas import CaseFacts, DocumentFacts, LabFacts
 
 # Aliases float to newer snapshots over time; pinning keeps behavior stable.
 MODEL_SNAPSHOTS = {"gpt-4.1-mini": "gpt-4.1-mini-2025-04-14"}
@@ -32,12 +33,31 @@ def resolve_model(model: str) -> str:
     return MODEL_SNAPSHOTS.get(model, model)
 
 
+def case_facts_format(submission: dict[str, Any]) -> type[CaseFacts]:
+    """CaseFacts with documents/labs pinned to the submission's item counts.
+
+    Strict structured outputs enforce minItems/maxItems, which stops the model
+    from dropping items or spilling one list into another.
+    """
+
+    def exact(section: str) -> Any:
+        count = len(submission.get(section) or [])
+        return Field(min_length=count, max_length=count)
+
+    return create_model(
+        "CaseFacts",
+        __base__=CaseFacts,
+        documents=(list[DocumentFacts], exact("documents")),
+        labs=(list[LabFacts], exact("labs")),
+    )
+
+
 def build_request(submission: dict[str, Any], model: str) -> dict[str, Any]:
     return {
         "model": resolve_model(model),
         "instructions": INSTRUCTIONS,
         "input": [{"role": "user", "content": build_case_input(submission)}],
-        "text_format": CaseFacts,
+        "text_format": case_facts_format(submission),
         "temperature": 0,
         # Responses are retained by default; submissions contain PHI.
         "store": False,
