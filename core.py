@@ -1,11 +1,9 @@
 """Shared policy, schema, and prompt helpers for the pre-op triage scripts."""
 
-from __future__ import annotations
-
 import json
 from typing import Literal
 
-from pydantic import AliasChoices, BaseModel, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 # -------------------------
 # Policy + system prompt
@@ -155,10 +153,19 @@ class PatientSubmission(BaseModel):
     documents: list[Document] = Field(default_factory=list)
     metadata: SubmissionMetadata | None = None
 
+class IssueEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(description="Field path the issue is anchored to, e.g. documents[4].")
+    details: str = Field(description="Why the source supports the issue; may cite other paths.")
+
+
 class TriageIssue(BaseModel):
+    model_config = ConfigDict(extra="forbid")
 
     category: IssueCategory
-    evidence: str
+    description: str
+    evidence: IssueEvidence
 
 class TriageOutput(BaseModel):
     """Structured output contract for triage responses."""

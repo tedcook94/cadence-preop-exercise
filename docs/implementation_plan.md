@@ -76,7 +76,7 @@ Status: `[ ]` todo, `[x]` done.
 
 ### Phase 1: Schemas (about 45 min)
 - [x] `Add extraction schema for case facts`: `schemas.py` with `CaseFacts` and its nested models, enums, `extra="forbid"`, all fields required. Test: strict-mode schema check.
-- [ ] `Add structured issue evidence to output schema`: `Issue{category, description, evidence{source, details}}`. Test: `example_output.json` validates.
+- [x] `Add structured issue evidence to output schema`: `Issue{category, description, evidence{source, details}}`. Test: `example_output.json` validates.
 
 ### Phase 2: Extraction (about 90 min)
 - [ ] `Add extraction prompt with static policy prefix`: `prompts.py` with the policy, the extraction guide, and the case-JSON builder. Test: the builder's output is deterministic.
