@@ -1,9 +1,11 @@
 """Single LLM call that turns a submission into structured CaseFacts."""
 
+from dataclasses import dataclass
 from typing import Any
 
 from openai import OpenAI
 
+from confidence import field_confidences
 from prompts import INSTRUCTIONS, build_case_input
 from schemas import CaseFacts
 
@@ -40,14 +42,21 @@ def build_request(submission: dict[str, Any], model: str) -> dict[str, Any]:
         # Responses are retained by default; submissions contain PHI.
         "store": False,
         "prompt_cache_key": PROMPT_CACHE_KEY,
+        "include": ["message.output_text.logprobs"],
     }
 
 
-def extract_case_facts(submission: dict[str, Any], *, model: str) -> CaseFacts:
-    """Extract CaseFacts from one submission with strict structured outputs."""
+@dataclass(frozen=True)
+class Extraction:
+    facts: CaseFacts
+    confidences: dict[str, float]
+
+
+def extract_case_facts(submission: dict[str, Any], *, model: str) -> Extraction:
+    """Extract CaseFacts and per-field confidences from one submission."""
 
     response = get_client().responses.parse(**build_request(submission, model))
     facts = response.output_parsed
     if facts is None:
         raise ValueError("Model returned no parsed CaseFacts (refusal or empty output)")
-    return facts
+    return Extraction(facts=facts, confidences=field_confidences(response))

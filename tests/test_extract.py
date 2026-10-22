@@ -20,9 +20,10 @@ def client(monkeypatch: pytest.MonkeyPatch) -> Mock:
 
 
 def test_request_uses_strict_cached_deterministic_settings(client: Mock) -> None:
-    facts = extract.extract_case_facts(SUBMISSION, model="gpt-4.1-mini")
+    result = extract.extract_case_facts(SUBMISSION, model="gpt-4.1-mini")
 
-    assert facts == FACTS
+    assert result.facts == FACTS
+    assert result.confidences == {}
     kwargs = client.responses.parse.call_args.kwargs
     assert kwargs["model"] == "gpt-4.1-mini-2025-04-14"
     assert kwargs["instructions"] == INSTRUCTIONS
@@ -31,6 +32,7 @@ def test_request_uses_strict_cached_deterministic_settings(client: Mock) -> None
     assert kwargs["temperature"] == 0
     assert kwargs["store"] is False
     assert kwargs["prompt_cache_key"] == extract.PROMPT_CACHE_KEY
+    assert kwargs["include"] == ["message.output_text.logprobs"]
 
 
 def test_unknown_model_passes_through(client: Mock) -> None:
