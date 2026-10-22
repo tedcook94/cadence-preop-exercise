@@ -8,9 +8,15 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from typing import Any
 
-from core import IssueCategory, IssueEvidence, TriageIssue
 from normalize import latest, parse_date, parse_datetime, to_fahrenheit, within_days
-from schemas import CaseFacts, DocumentFacts, LabTest
+from schemas import (
+    CaseFacts,
+    DocumentFacts,
+    IssueCategory,
+    IssueEvidence,
+    LabTest,
+    TriageIssue,
+)
 
 HP_WINDOW_DAYS = 30
 LAB_WINDOW_DAYS = {"LOW": 30, "MODERATE": 30, "HIGH": 14}

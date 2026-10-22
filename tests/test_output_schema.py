@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from core import TriageOutput
+from schemas import TriageOutput
 
 EXAMPLE_OUTPUT = Path(__file__).resolve().parent.parent / "data" / "example_output.json"
 
